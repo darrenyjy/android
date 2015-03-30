@@ -1,6 +1,8 @@
 package com.example.jinyaoyuan.mywhether;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.drawable.Drawable;
 import android.os.Message;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -8,6 +10,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,11 +30,13 @@ import java.io.StringReader;
 
 import android.os.Handler;
 
+import java.lang.reflect.Field;
 import java.util.logging.LogRecord;
 import java.util.zip.GZIPInputStream;
 
 import bean.TodayBean;
 import util.NetUtil;
+import util.PinYin;
 
 
 public class MainActivity extends ActionBarActivity implements View.OnClickListener {//对应一个layout.xml
@@ -82,7 +87,6 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         climateTv.setText("N/A");
         windTv.setText("N/A");
 
-
     }
 
     @Override
@@ -106,8 +110,46 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
         temperatureTv.setText(todayBean.getHigh() + "~" + todayBean.getLow());
         climateTv.setText(todayBean.getType());
         windTv.setText("风力：" + todayBean.getFengli());
+
+        int pmValue = Integer.parseInt(todayBean.getPm25().trim());
+        String pmImgStr = "0_50";
+        if (pmValue > 50 && pmValue < 201) {
+            int startV = (pmValue - 1) / 50 * 50 + 1;
+            int endV = ((pmValue - 1) / 50 + 1) * 50;
+            pmImgStr = Integer.toString(startV) + "_" + endV;
+        } else if (pmValue >= 201 && pmValue < 301) {
+            pmImgStr = "201_300";
+        } else if (pmValue >= 301) {
+            pmImgStr = "greater_300";
+        }
+        String typeImg = "biz_plugin_weather_" + PinYin.converterToSpell(todayBean.getType());
+        Class aClass = R.drawable.class;
+        int typeId = -1;
+        int pmImgId = -1;
+        try {
+
+            Field field = aClass.getField(typeImg);
+            Object value = field.get(new Integer(0));
+            typeId = (int) value;
+
+            Field pmField = aClass.getField("biz_plugin_weather_" + pmImgStr);
+            Object pmImgO = pmField.get(new Integer(0));
+            pmImgId = (int) pmImgO;
+        } catch (Exception e) { //e.printStackTrace();
+            if (-1 == typeId)
+                typeId = R.drawable.biz_plugin_weather_qing;
+            if (-1 == pmImgId)
+                pmImgId = R.drawable.biz_plugin_weather_0_50;
+        } finally {
+            Drawable drawable = getResources().getDrawable(typeId);
+            weatherImg.setImageDrawable(drawable);
+            drawable = getResources().getDrawable(pmImgId);
+            pmImg.setImageDrawable(drawable);
+            Toast.makeText(MainActivity.this, "更新成功", Toast.LENGTH_SHORT).show();
+        }
         Toast.makeText(MainActivity.this, "更新成功！", Toast.LENGTH_SHORT).show();
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -151,6 +193,7 @@ public class MainActivity extends ActionBarActivity implements View.OnClickListe
 
         }
     }
+
 
     private void queryWeatherCode(String cityCode) {
         final String address = "http://wthrcdn.etouch.cn/WeatherApi?citykey=" + cityCode;
